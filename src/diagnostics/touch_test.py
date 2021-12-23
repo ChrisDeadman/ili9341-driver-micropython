@@ -9,7 +9,7 @@ class TouchTest(object):
         self.touch = touch
         self.pen_color_idx = 1
 
-    def execute(self, bg_color):
+    def run(self, bg_color):
         try:
             self.touch.int_handler = self.touch_handler
             while True:
@@ -33,7 +33,7 @@ class TouchTest(object):
 
     def touch_handler(self, x, y):
         print(f'touch: {x}, {y}')
-        y += self.display.scroll_pos
+        y += self.display.get_scroll()[1]
         fb.fill_circle(self.display, x, y, 4, COMMON_COLORS[self.pen_color_idx])
 
     def cylce_pen_color(self):

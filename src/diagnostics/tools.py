@@ -9,7 +9,7 @@ class Tools(object):
     def __init__(self, display):
         self.display = display
 
-    def execute(self):
+    def run(self):
         while True:
             print('Tools:')
             tools = [

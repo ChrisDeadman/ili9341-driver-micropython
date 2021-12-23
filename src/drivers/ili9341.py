@@ -195,8 +195,7 @@ class Display(object):
 
     def fill(self, c):
         """Fill display with the specified color."""
-        self.scroll_pos = 0
-        self.scroll(0, 0)
+        self.scroll_abs(0, 0)
         self.fill_rect(0, 0, self.width, self.height, c)
 
     def pixel(self, x, y, c=None):
@@ -398,12 +397,26 @@ class Display(object):
         self.write_ram(data[data_idx:], x1, y1, x2, y2)
 
     def scroll(self, xstep, ystep):
-        """Shift the contents of the FrameBuffer by the given vector."""
+        """Shift the contents of the frame-buffer by the given vector."""
+        if xstep and self.rotation == 90:
+            self.scroll_abs(self.scroll_pos + xstep, ystep)
+        else:
+            self.scroll_abs(xstep, self.scroll_pos + ystep)
+
+    def scroll_abs(self, xstep, ystep):
+        """Set the shift of the contents of the frame-buffer to the given vector."""
         if (xstep and self.rotation != 90) or (ystep and self.rotation != 0):
             raise ValueError(f'scroll(xstep={xstep},ystep={ystep}) not supported for rotation={self.rotation}')
 
-        self.scroll_pos += max(xstep, ystep)
+        self.scroll_pos = max(xstep, ystep)
         self.write_cmd(self.VSCRSADD, *ustruct.pack('>H', self.scroll_pos % self.height))
+
+    def get_scroll(self):
+        """Return the shift-vector of the frame-buffer."""
+        if self.rotation == 90:
+            return (self.scroll_pos, 0)
+        else:
+            return (0, self.scroll_pos)
 
     def set_scroll_margins(self, top, bottom):
         """Set the height of the top and bottom scroll margins."""

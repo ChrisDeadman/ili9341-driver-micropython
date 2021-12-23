@@ -9,7 +9,7 @@ class FontTest(object):
         self.display = display
         self.font = None
 
-    def execute(self, bg_color):
+    def run(self, bg_color):
         if not self.font:
             self.load_font()
 

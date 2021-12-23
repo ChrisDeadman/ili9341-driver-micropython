@@ -1,3 +1,4 @@
+from apps import AppLauncher
 from extensions import input
 from utils import COMMON_COLORS
 
@@ -15,6 +16,7 @@ class Diagnostics(object):
         self.bg_color_idx = 0
 
     def run(self):
+        app_launcher = AppLauncher(self.display, self.touch)
         tools = Tools(self.display)
         draw_test = DrawTest(self.display)
         font_test = FontTest(self.display)
@@ -26,10 +28,11 @@ class Diagnostics(object):
             tests = [
                 ['Clear display', lambda: self.display.fill(bg_color)],
                 ['Cycle background color', self._cylce_bg_color],
-                ['Tools', lambda: tools.execute()],
-                ['Draw tests', lambda: draw_test.execute(bg_color)],
-                ['Font tests', lambda: font_test.execute(bg_color)],
-                ['Touch tests', lambda: touch_test.execute(bg_color)],
+                ['Tools', lambda: tools.run()],
+                ['Apps', lambda: app_launcher.run(bg_color)],
+                ['Draw tests', lambda: draw_test.run(bg_color)],
+                ['Font tests', lambda: font_test.run(bg_color)],
+                ['Touch tests', lambda: touch_test.run(bg_color)],
                 ['Exit', None],
             ]
             for idx, test in enumerate(tests):
@@ -45,4 +48,3 @@ class Diagnostics(object):
         self.bg_color_idx += 1
         if self.bg_color_idx >= len(COMMON_COLORS):
             self.bg_color_idx = 0
-        self.display.fill(COMMON_COLORS[self.bg_color_idx])

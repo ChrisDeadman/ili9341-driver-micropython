@@ -10,7 +10,7 @@ class DrawTest(object):
     def __init__(self, display):
         self.display = display
 
-    def execute(self, bg_color):
+    def run(self, bg_color):
         while True:
             print('Draw tests:')
             tests = [
