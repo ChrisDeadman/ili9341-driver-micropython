@@ -1,5 +1,4 @@
-from drivers import color565
-from extensions import input
+from extensions import fb, input
 from utils import COMMON_COLORS
 
 
@@ -23,6 +22,7 @@ class TouchTest(object):
                 for idx, test in enumerate(tests):
                     print(f'{idx}: {test[0]}')
 
+                print('touch handler active, draw something...')
                 test_idx = input.read_int('option>')
                 if test_idx >= len(tests) - 1:
                     break
@@ -33,7 +33,8 @@ class TouchTest(object):
 
     def touch_handler(self, x, y):
         print(f'touch: {x}, {y}')
-        self.display.pixel(x, y, COMMON_COLORS[self.pen_color_idx])
+        y += self.display.scroll_pos
+        fb.fill_circle(self.display, x, y, 4, COMMON_COLORS[self.pen_color_idx])
 
     def cylce_pen_color(self):
         self.pen_color_idx += 1

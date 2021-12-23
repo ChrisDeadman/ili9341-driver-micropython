@@ -1,13 +1,14 @@
 # An efficient and extensible ILI934X display driver for micropython.
 #
-# "More or less" implements framebuf.FrameBuffer interface.
-# Supports drawing text using fonts.
-# Supports "font-to-py" compatible fonts out of the box (https://github.com/peterhinch/micropython-font-to-py; defaults to tt14.py)
-# Tries to support auto-scrolling but has a few issues:
-# - only works properly when rotation=0
-# - when drawing off-screen first blit rows after scroll looks borked
-# - if YOU find a fix for one of those please open issue or merge-request here https://github.com/ChrisDeadman/ili9341-driver-micropython
-#   or post somewhere in case I'm gone.
+# - Implements framebuf.FrameBuffer interface.
+# - Supports drawing text using fonts.
+# - Supports "font-to-py" compatible fonts out of the box (https://github.com/peterhinch/micropython-font-to-py; defaults to tt14.py)
+# - Supports auto-scrolling but only for rotation=0
+# - No transparency support yet
+# - No support for blitting framebuffers that are not in RGB565 format
+#
+# If YOU have improvements please open issue or merge-request here https://github.com/ChrisDeadman/ili9341-driver-micropython
+# or post somewhere in case I'm gone.
 #
 # MIT License; Copyright (c) 2022 Christopher Hubmann
 #
@@ -20,6 +21,7 @@
 from time import sleep
 
 import fonts
+import framebuf
 import ustruct
 from ubinascii import hexlify
 from ucollections import OrderedDict
@@ -128,10 +130,9 @@ class Display(object):
         self.width = width
         self.height = height
         self.scroll_pos = 0
+        self.rotation = rotation
         if rotation not in self.ROTATE.keys():
             raise ValueError('Rotation must be 0, 90, 180 or 270.')
-        else:
-            self.rotation = self.ROTATE[rotation]
 
         # 4 rows blit buffer
         self.blit_buf = bytearray(width*4*2)
@@ -155,8 +156,9 @@ class Display(object):
         self.write_cmd(self.PWCTR2, 0x10)  # Pwr ctrl 2
         self.write_cmd(self.VMCTR1, 0x3E, 0x28)  # VCOM ctrl 1
         self.write_cmd(self.VMCTR2, 0x86)  # VCOM ctrl 2
-        self.write_cmd(self.MADCTL, self.rotation)  # Memory access ctrl
-        self.write_cmd(self.VSCRSADD, 0x00)  # Vertical scrolling start address
+        self.write_cmd(self.MADCTL, self.ROTATE[rotation])  # Memory access ctrl
+        self.write_cmd(self.VSCRDEF, *ustruct.pack('>HHH', 0, self.height, 0))  # Vertical scrolling definition
+        self.write_cmd(self.VSCRSADD, 0x00, 0x00)  # Vertical scrolling start address
         self.write_cmd(self.PIXFMT, 0x55)  # COLMOD: Pixel format
         self.write_cmd(self.FRMCTR1, 0x00, 0x18)  # Frame rate ctrl
         self.write_cmd(self.DFUNCTR, 0x08, 0x82, 0x27)
@@ -194,7 +196,7 @@ class Display(object):
     def fill(self, c):
         """Fill display with the specified color."""
         self.scroll_pos = 0
-        self.scroll(0)
+        self.scroll(0, 0)
         self.fill_rect(0, 0, self.width, self.height, c)
 
     def pixel(self, x, y, c=None):
@@ -274,7 +276,7 @@ class Display(object):
             while True:
                 yield row
 
-        self.blit(row_gen(), x, y, w, h)
+        self.blit_rows(row_gen(), x, y, w, h)
 
     def text(self, s, x, y, c=1, bg=-1, font=fonts.tt14):
         """Draw some text."""
@@ -303,28 +305,39 @@ class Display(object):
                         pixel_idx += 2
                 yield row
 
-        self.blit(row_gen(), x, y, text_width, font.height(), key)
+        self.blit_rows(row_gen(), x, y, text_width, font.height(), key)
         return text_width
 
-    def blit(self, row_gen, x, y, w, h, key=- 1):
+    def blit(self, buf, x, y, w, h, key=- 1, palette=framebuf.RGB565):
+        """Draw the contents of a buffer at the given coordinates."""
+        if palette != framebuf.RGB565:
+            raise NotImplementedError(f'Palette {palette} not yet supported.')
+
+        def row_gen():
+            for idx in range(0, len(buf), w*2):
+                yield buf[idx:idx+w*2]
+
+        self.blit_rows(row_gen(), x, y, w, h, key)
+
+    def blit_rows(self, row_gen, x, y, w, h, key=- 1):
         """Draw a number of rows from row generator."""
         chunk_height = len(self.blit_buf) // 2 // w
         chunk_count, remainder = divmod(h, chunk_height)
 
         for c in range(0, chunk_count):
-            self.blit_chunk_row(row_gen, x, y, w, chunk_height, key)
+            self.draw_rows(row_gen, x, y, w, chunk_height, key)
             y += chunk_height
 
         if remainder:
-            self.blit_chunk_row(row_gen, x, y, w, remainder, key)
+            self.draw_rows(row_gen, x, y, w, remainder, key)
 
-    def blit_chunk_row(self, row_gen, x, y, w, h, key=- 1):
+    def draw_rows(self, row_gen, x, y, w, h, key=- 1):
         """Draw a number of rows from row generator."""
         draw_w = min(self.width, w)
         pixel_w = draw_w*2
         draw_bytes = pixel_w*h
         if draw_bytes > len(self.blit_buf):
-            raise ValueError(f'{draw_w}*{h} is too big for blit buffer')
+            raise ValueError(f'{pixel_w}*{h} is too big for blit buffer')
 
         x2 = x+draw_w-1
         y2 = y+h-1
@@ -362,30 +375,32 @@ class Display(object):
             return
 
         #
-        # auto-scrolling
-        # First junk looks broken, no fix found so far :(
-        # Code looks alright as far as I can still tell since in the end this was all just trial-and-error tbh :D
+        # auto-scrolling (only works for rotation=0)
+        # I would advise not to change this since in the end this was all just trial-and-error :D
         #
-        data_idx = 0
-        if y2 - self.height >= self.scroll_pos:
+        if self.rotation == 0:
+            if y2 - self.height >= self.scroll_pos:
+                ystep = (y2 - self.scroll_pos + 1) % self.height
+                self.scroll(0, ystep)
+            # clamp to frame memory
+            y1 %= self.height
             y2 %= self.height
-            scroll_y = (y2 - self.scroll_pos + 1) % self.height
-            remainder = scroll_y - h
-            if remainder:
+            # might need to split data in memory buffer
+            data_idx = 0
+            if y1 > y2:
+                remainder = self.height - y1
                 data_idx = remainder*w*2
-                self.write_ram(data[:data_idx], x1, y1 % self.height, x2, self.height-1)
-            y1 = 0
-            y2 = y1+h-remainder-1
-            self.scroll(scroll_y)
-        elif self.scroll_pos:
-            y1 = (y1 + self.scroll_pos) % self.height
-            y2 = (y2 + self.scroll_pos) % self.height
+                self.write_ram(data[:data_idx], x1, y1, x2, self.height-1)
+                y1 = 0
 
         self.write_ram(data[data_idx:], x1, y1, x2, y2)
 
-    def scroll(self, y):
-        """Scroll display vertically by y pixels."""
-        self.scroll_pos += y
+    def scroll(self, xstep, ystep):
+        """Shift the contents of the FrameBuffer by the given vector."""
+        if (xstep and self.rotation != 90) or (ystep and self.rotation != 0):
+            raise ValueError(f'scroll(xstep={xstep},ystep={ystep}) not supported for rotation={self.rotation}')
+
+        self.scroll_pos += max(xstep, ystep)
         self.write_cmd(self.VSCRSADD, *ustruct.pack('>H', self.scroll_pos % self.height))
 
     def set_scroll_margins(self, top, bottom):
