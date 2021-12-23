@@ -1,0 +1,14 @@
+{
+    "python.linting.enabled": true,
+    "python.analysis.typeshedPaths": [
+        ".vscode/Pico-Stub"
+    ],
+    "python.languageServer": "Jedi",
+    "python.analysis.typeCheckingMode": "basic",
+    "python.analysis.extraPaths": [
+        ".vscode/Pico-Stub/stubs"
+    ],
+    "python.autoComplete.extraPaths": [
+        ".vscode/Pico-Stub/stubs"
+    ]
+}

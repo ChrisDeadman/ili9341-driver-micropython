@@ -1,0 +1,4 @@
+(sym_lib_table
+  (lib (name RPi_Pico)(type Legacy)(uri "${KIPRJMOD}/sym-lib/RP-Pico Libraries/MCU_RaspberryPi_and_Boards.lib")(options "")(descr ""))
+  (lib (name IL9341-240x320-TFT-LCD)(type Legacy)(uri ${KIPRJMOD}/sym-lib/IL9341-240x320-TFT-LCD/IL9341-240x320-TFT-LCD.lib)(options "")(descr ""))
+)
