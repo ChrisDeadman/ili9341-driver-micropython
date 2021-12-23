@@ -1,0 +1,10 @@
+1,asteroid,asteroid_sml,70,0,3
+2,asteroid,asteroid_sml,10,0,7
+2,asteroid,asteroid_med,150,0,5
+3,asteroid,asteroid_sml,180,0,7
+5,asteroid,asteroid_lge,220,0,4
+6,asteroid,asteroid_sml,50,0,6
+6,asteroid,asteroid_lge,90,0,7
+7,asteroid,asteroid_sml,100,0,5
+7,asteroid,asteroid_sml,10,0,7
+40,end
