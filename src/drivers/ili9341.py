@@ -324,7 +324,7 @@ class Display(object):
         pixel_w = draw_w*2
         draw_bytes = pixel_w*h
         if draw_bytes > len(self.blit_buf):
-            raise ValueError('{draw_w}*{h} is too big for blit buffer')
+            raise ValueError(f'{draw_w}*{h} is too big for blit buffer')
 
         x2 = x+draw_w-1
         y2 = y+h-1
