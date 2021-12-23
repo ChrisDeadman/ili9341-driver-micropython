@@ -110,11 +110,13 @@ class SpaceGame(object):
                 # Update position of shot
                 this_shot.update()
                 if this_shot.y <= 0:
+                    this_shot.destroy()
                     self.shots.remove(this_shot)
                 # Check if hit asteroid or enemy
                 elif self.enemies.check_shot(this_shot.x, this_shot.y):
                     self.player1.score += 10
                     # remove shot (otherwise it continues to hit others)
+                    this_shot.destroy()
                     self.shots.remove(this_shot)
 
         # clear touch input

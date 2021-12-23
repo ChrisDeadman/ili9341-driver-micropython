@@ -17,7 +17,11 @@ class Shot:
         self.y -= 6
 
     def draw(self):
-        fb.fill_polygon(self.display, 3, int(self.x), int(self.y+6), 2, self.bg_color)
         if self.y <= 0:
             return
+        fb.fill_polygon(self.display, 3, int(self.x), int(self.y+6), 2, self.bg_color)
         fb.fill_polygon(self.display, 3, int(self.x), int(self.y), 2, self.color)
+
+    def destroy(self):
+        fb.fill_polygon(self.display, 3, int(self.x), int(self.y+6), 2, self.bg_color)
+        self.y = -1
