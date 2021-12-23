@@ -2,9 +2,7 @@
 from machine import PWM, SPI, Pin
 
 from diagnostics import Diagnostics
-from drivers import Display, Touch, color565
-from extensions import input
-from utils import COMMON_COLORS
+from drivers import Display, Touch
 
 
 def main():

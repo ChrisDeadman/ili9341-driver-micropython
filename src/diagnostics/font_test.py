@@ -1,7 +1,4 @@
-import os
-
-from drivers import color565
-from extensions import input, re
+from extensions import input
 from fonts import FONTS
 from utils import COMMON_COLORS
 
@@ -39,23 +36,24 @@ class FontTest(object):
 
     def test_normal(self, bg_color):
         self.display.fill(bg_color)
+
         x = 0
         y = 0
-        for color_idx in range(len(COMMON_COLORS)):
-            color = COMMON_COLORS[color_idx]
+        for color in COMMON_COLORS:
             self.display.text('Colored text', x, y, color, font=self.font)
             y += self.font.height() + 1
 
     def test_background(self, bg_color):
         self.display.fill(bg_color)
+
         x = 0
         y = 0
-        for color_idx in range(len(COMMON_COLORS)):
-            bg_color_idx = len(COMMON_COLORS) - color_idx - 1
+        color_idx = len(COMMON_COLORS) - 1
+        for bg_color in COMMON_COLORS:
             color = COMMON_COLORS[color_idx]
-            bg_color = COMMON_COLORS[bg_color_idx]
             self.display.text('Text with background', x, y, color, bg=bg_color, font=self.font)
             y += self.font.height() + 1
+            color_idx -= 1
 
     def load_font(self):
         print('Select font:')

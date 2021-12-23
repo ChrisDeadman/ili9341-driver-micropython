@@ -1,11 +1,9 @@
-import gc
-import os
-
 from extensions import input
 from utils import COMMON_COLORS
 
 from diagnostics.draw_test import DrawTest
 from diagnostics.font_test import FontTest
+from diagnostics.tools import Tools
 from diagnostics.touch_test import TouchTest
 
 
@@ -17,22 +15,21 @@ class Diagnostics(object):
         self.bg_color_idx = 0
 
     def run(self):
+        tools = Tools(self.display)
         draw_test = DrawTest(self.display)
         font_test = FontTest(self.display)
         touch_test = TouchTest(self.display, self.touch)
 
         while True:
+            bg_color = COMMON_COLORS[self.bg_color_idx]
             print('Diagnostics menu:')
             tests = [
-                ['Free RAM', self._get_free_ram],
-                ['Free Disk Space', lambda: self._get_free_diskspace('/')],
-                ['Display info', lambda: print(self.display.get_info())],
-                ['Clear display', lambda: self.display.fill(COMMON_COLORS[self.bg_color_idx])],
-                ['Change brightness', lambda: self.display.set_brightness(input.read_int('brightness>'))],
+                ['Clear display', lambda: self.display.fill(bg_color)],
                 ['Cycle background color', self._cylce_bg_color],
-                ['Draw test', lambda: draw_test.execute(COMMON_COLORS[self.bg_color_idx])],
-                ['Font test', lambda: font_test.execute(COMMON_COLORS[self.bg_color_idx])],
-                ['Touch test', lambda: touch_test.execute(COMMON_COLORS[self.bg_color_idx])],
+                ['Tools', lambda: tools.execute()],
+                ['Draw tests', lambda: draw_test.execute(bg_color)],
+                ['Font tests', lambda: font_test.execute(bg_color)],
+                ['Touch tests', lambda: touch_test.execute(bg_color)],
                 ['Exit', None],
             ]
             for idx, test in enumerate(tests):
@@ -49,14 +46,3 @@ class Diagnostics(object):
         if self.bg_color_idx >= len(COMMON_COLORS):
             self.bg_color_idx = 0
         self.display.fill(COMMON_COLORS[self.bg_color_idx])
-
-    def _get_free_ram(self):
-        free_space_kb = gc.mem_free() // 1024
-        print(f'Free RAM: {free_space_kb}kB')
-
-    def _get_free_diskspace(self, path):
-        fs_stats = os.statvfs(path)
-        f_bsize = fs_stats[0]
-        f_bavail = fs_stats[4]
-        free_space_kb = (f_bsize * f_bavail) // 1024
-        print(f'Free disk space: {free_space_kb}kB')
