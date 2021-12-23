@@ -4,8 +4,8 @@ An efficient and extensible ILI934X display driver for micropython.
 
 ## Main files
 
-[ili9341.py](drivers/ili9341.py)
-[xpt2046.py](drivers/xpt2046.py)
+- [ili9341.py](drivers/ili9341.py)
+- [xpt2046.py](drivers/xpt2046.py)
 
 ## Demo
 
