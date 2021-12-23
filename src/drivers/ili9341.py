@@ -134,8 +134,8 @@ class Display(object):
         if rotation not in self.ROTATE.keys():
             raise ValueError('Rotation must be 0, 90, 180 or 270.')
 
-        # 4 rows blit buffer
-        self.blit_buf = bytearray(width*4*2)
+        # set size for chunk writes to 4 rows
+        self.chunk_size = width*4*2
 
         # Initialize GPIO pins
         self.pwm.freq(500)
@@ -270,13 +270,16 @@ class Display(object):
 
     def fill_rect(self, x, y, w, h, c):
         """Draw a filled rectangle."""
-        row = c.to_bytes(2, 'big') * w
+        chunk_height = self.chunk_size // 2 // w
+        chunk_count, remainder = divmod(h, chunk_height)
+        chunk = c.to_bytes(2, 'big') * chunk_height * w
 
-        def row_gen():
-            while True:
-                yield row
+        for c in range(0, chunk_count):
+            self.draw_chunk(chunk, x, y, x+w-1, y+chunk_height-1)
+            y += chunk_height
 
-        self.blit_rows(row_gen(), x, y, w, h)
+        if remainder:
+            self.draw_chunk(chunk[:remainder*w*2], x, y, x+w-1, y+remainder-1)
 
     def text(self, s, x, y, c=1, bg=-1, font=fonts.tt14):
         """Draw some text."""
@@ -321,7 +324,7 @@ class Display(object):
 
     def blit_rows(self, row_gen, x, y, w, h, key=- 1):
         """Draw a number of rows from row generator."""
-        chunk_height = len(self.blit_buf) // 2 // w
+        chunk_height = self.chunk_size // 2 // w
         chunk_count, remainder = divmod(h, chunk_height)
 
         for c in range(0, chunk_count):
@@ -336,18 +339,17 @@ class Display(object):
         draw_w = min(self.width, w)
         pixel_w = draw_w*2
         draw_bytes = pixel_w*h
-        if draw_bytes > len(self.blit_buf):
-            raise ValueError(f'{pixel_w}*{h} is too big for blit buffer')
 
         x2 = x+draw_w-1
         y2 = y+h-1
         buf_idx = 0
+        chunk = bytearray(draw_bytes)
         for _ in range(h):
             row = next(row_gen)
             # only draw up to display width
-            self.blit_buf[buf_idx:buf_idx+pixel_w] = row[:pixel_w]
+            chunk[buf_idx:buf_idx+pixel_w] = row[:pixel_w]
             buf_idx += pixel_w
-        self.draw_chunk(self.blit_buf[:draw_bytes], x, y, x2, y2, key)
+        self.draw_chunk(chunk, x, y, x2, y2, key)
 
     def draw_chunk(self, data, x1, y1, x2, y2, key=- 1):
         """Write a chunk of data to display.
@@ -359,13 +361,13 @@ class Display(object):
         # check if coordinates extend past display boundaries
         # (ignore y because autoscrolling)
         if x1 < 0:
-            print(f'x-coordinate: {x1} below minimum of 0.')
+            #print(f'x-coordinate: {x1} below minimum of 0.')
             return True
         if y1 < 0:
-            print(f'y-coordinate: {y1} below minimum of 0.')
+            #print(f'y-coordinate: {y1} below minimum of 0.')
             return True
         if x2 >= self.width:
-            print(f'x-coordinate: {x2} above maximum of {self.width-1}.')
+            #print(f'x-coordinate: {x2} above maximum of {self.width-1}.')
             return True
         if self.scroll_pos - y1 >= self.height:
             print(f'ignoring chunk, y1 is on previous page ({self.scroll_pos}-{y1} >= {self.height})')
