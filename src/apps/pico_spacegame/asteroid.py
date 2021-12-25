@@ -1,12 +1,11 @@
 import utime
 from apps.pico_spacegame.constants import *
-from extensions import fb
 
 
 class Asteroid:
 
-    def __init__(self, display, start_time, image_size, start_pos, velocity, color, bg_color):
-        self.display = display
+    def __init__(self, fbuf, start_time, image_size, start_pos, velocity, color):
+        self.fbuf = fbuf
         if (image_size == "asteroid_sml"):
             self.size = 5
         elif (image_size == "asteroid_med"):
@@ -22,18 +21,12 @@ class Asteroid:
         self.start_time = start_time
         self.velocity = velocity
         self.color = color
-        self.bg_color = bg_color
         self.status = STATUS_WAITING
-        self.needs_draw = True
 
     def draw(self):
-        if self.needs_draw:
-            if self.status == STATUS_VISIBLE:
-                fb.fill_circle(self.display, int(self.x), int(self.y-self.velocity), self.size, self.bg_color)
-                fb.fill_circle(self.display, int(self.x), int(self.y), self.size, self.color)
-            elif self.status == STATUS_DESTROYED:
-                fb.fill_circle(self.display, int(self.x), int(self.y-self.velocity), self.size, self.bg_color)
-                self.needs_draw = False
+        if self.status != STATUS_VISIBLE:
+            return
+        self.fbuf.fill_circle(int(self.x), int(self.y), self.size, self.color)
 
     def update(self, level_time):
         if self.status == STATUS_WAITING:
@@ -49,7 +42,6 @@ class Asteroid:
 
     def reset(self):
         self.status = STATUS_WAITING
-        self.needs_draw = True
 
     def hit(self):
         self.status = STATUS_DESTROYED

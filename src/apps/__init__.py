@@ -1,4 +1,7 @@
 
+import gc
+
+from drivers import color565
 from extensions import input
 
 
@@ -12,7 +15,7 @@ class AppLauncher(object):
         while True:
             print('Apps:')
             tests = [
-                ['pico-spacegame', lambda: self._run_pico_spacegame(bg_color)],
+                ['pico-spacegame', self._run_pico_spacegame],
                 ['Return', None],
             ]
             for idx, test in enumerate(tests):
@@ -22,10 +25,13 @@ class AppLauncher(object):
             if test_idx >= len(tests) - 1:
                 break
 
+            self.display.scroll_abs(0, 0)
+            gc.collect()
             tests[test_idx][1]()
+            gc.collect()
 
-    def _run_pico_spacegame(self, bg_color):
+    def _run_pico_spacegame(self):
         from apps.pico_spacegame.spacegame import SpaceGame
         self.display.set_brightness(0xCFFF)
-        print('touch top-left corner to exit...')
-        SpaceGame(self.display, self.touch, bg_color=bg_color).run()
+        self.display.fill(color565(0x15, 0xb0, 0x1a))
+        SpaceGame(self.display, self.touch).run()

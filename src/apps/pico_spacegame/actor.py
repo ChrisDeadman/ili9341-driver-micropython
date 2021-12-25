@@ -1,14 +1,10 @@
 class Actor:
 
-    def __init__(self, display, filename, bg_color, position=(0, 0)):
-
-        self.display = display
-        self.bg_color = bg_color
+    def __init__(self, fbuf, filename, position=(0, 0)):
+        self.fbuf = fbuf
 
         self.x = position[0]
         self.y = position[1]
-        self.topleft_x_old = -1
-        self.topleft_y_old = -1
 
         self._angle = 0
 
@@ -17,7 +13,7 @@ class Actor:
 
         # private member - when changed reload image
         self._image = filename
-        self.load_image()
+        self.image_data = self.load_image()
 
     # Image property can be used to change the image
     # if use <instance>.image = newfile then it will load that file instead
@@ -28,7 +24,7 @@ class Actor:
     @image.setter
     def image(self, new_value):
         self._image = new_value
-        self.load_image()
+        self.image_data = self.load_image()
 
     # rotation angle can be set in degrees
     # Only actual rotate in 90 deg intervals
@@ -55,7 +51,7 @@ class Actor:
             self.width = ord(file.read(1))
             self.height = ord(file.read(1))
 
-            self.image_data = bytearray(self.width * self.height * 2)
+            image_data = bytearray(self.width * self.height * 2)
 
             position = 0
             while position < (self.width * self.height * 2):
@@ -64,45 +60,31 @@ class Actor:
                 if len(current_byte) == 0:
                     break
                 # copy to buffer
-                self.image_data[position] = ord(current_byte)
+                image_data[position] = ord(current_byte)
                 position += 1
-        file.close()
+        return image_data
 
     def draw(self):
         # position to start creating image is offset (x,y is center of image)
         # this gives top left hand corner of image
-        width = self.get_rotate_width()
-        height = self.get_rotate_height()
-        topleft_x = self.x - int(width/2)
-        topleft_y = self.y - int(height/2)
-
-        # clear previous actor
-        if self.topleft_x_old >= 0 and (topleft_x != self.topleft_x_old or topleft_y != self.topleft_y_old):
-            self.display.fill_rect(self.topleft_x_old, self.topleft_y_old, width, height, self.bg_color)
-        self.topleft_x_old = topleft_x
-        self.topleft_y_old = topleft_y
-
-        def row_gen():
-            for y in range(0, height):
-                # Check y is in range
-                if (topleft_y + y < 0 or topleft_y + y >= self.display.height):
+        topleft_x = self.x - int(self.get_rotate_width()/2)
+        topleft_y = self.y - int(self.get_rotate_height()/2)
+        for y in range(0, self.get_rotate_height()):
+            # Check y is in range
+            if (topleft_y + y < 0 or topleft_y + y >= self.fbuf.height):
+                continue
+            # buffer pos of actor
+            actor_start_row = self.sprite_buffer_pos(0, y)
+            for x in range(0, self.get_rotate_width()):
+                # Check x is in range
+                if (topleft_x + x < 0 or topleft_x + x >= self.fbuf.width):
                     continue
-                # buffer pos of actor
-                actor_start_row = self.sprite_buffer_pos(0, y)
-                row_data = bytearray(self.bg_color.to_bytes(2, 'big') * width)
-                for x in range(0, width):
-                    # Check x is in range
-                    if (topleft_x + x < 0 or topleft_x + x >= self.display.width):
-                        continue
-                    color_bytes = self.get_sprite_data(x, y)
-                    # If transparent then don't copy
-                    if (self.enable_transparency and color_bytes[0] == 0 and color_bytes[1] == 0):
-                        continue
-                    row_data[x*2] = color_bytes[0]
-                    row_data[(x*2)+1] = color_bytes[1]
-                yield row_data
-
-        self.display.blit_rows(row_gen(), topleft_x, topleft_y, width, height)
+                color_bytes = self.get_sprite_data(x, y)
+                # If transparent then don't copy
+                if (self.enable_transparency and color_bytes[0] == 0 and color_bytes[1] == 0):
+                    continue
+                # Draw the pixel on the framebuffer
+                self.fbuf.pixel(topleft_x+x, topleft_y+y, int.from_bytes(color_bytes, 'big'))
 
     def get_sprite_data(self, x, y):
         color_bytes = bytearray(2)

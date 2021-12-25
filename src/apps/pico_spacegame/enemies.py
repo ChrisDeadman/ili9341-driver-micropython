@@ -11,9 +11,8 @@ configfile = "/apps/pico_spacegame/enemies.dat"
 
 class Enemies:
 
-    def __init__(self, display, bg_color):
-        self.display = display
-        self.bg_color = bg_color
+    def __init__(self, fbuf):
+        self.fbuf = fbuf
         self.enemy_color = color565(150, 75, 0)
         self.asteroids = []
         # Time that this level started
@@ -36,8 +35,8 @@ class Enemies:
                         start_pos = (int(enemy_details[3]), int(enemy_details[4]))
                         velocity = int(enemy_details[5])
                         asteroid_color = self.enemy_color + random.randint(0, 100)
-                        self.asteroids.append(Asteroid(display, start_time, image_size, start_pos, velocity,
-                                                       asteroid_color, self.bg_color))
+                        self.asteroids.append(Asteroid(fbuf, start_time, image_size, start_pos, velocity,
+                                                       asteroid_color))
                         #print ("Asteroid {} {} {} {}".format(start_time, image_size, start_pos, velocity))
         except IOError:
             print("Error reading configuration file "+configfile)
@@ -84,8 +83,6 @@ class Enemies:
         return False
 
     def next_level(self):
-        self.display.scroll(0, 0)
-        self.display.fill(self.bg_color)
         self.level_time = utime.time()
         for this_asteroid in self.asteroids:
             this_asteroid.reset()

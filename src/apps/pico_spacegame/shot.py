@@ -1,27 +1,20 @@
 import utime
 from apps.pico_spacegame.constants import *
 from drivers import color565
-from extensions import fb
 
 
 class Shot:
 
-    def __init__(self, display, start_position, bg_color, color=color565(255, 255, 255)):
-        self.display = display
-        self.bg_color = bg_color
+    def __init__(self, fbuf, start_position, color=color565(255, 255, 255)):
+        self.fbuf = fbuf
         self.x = start_position[0]
         self.y = start_position[1]
         self.color = color
 
     def update(self):
-        self.y -= 6
+        self.y -= 2
 
     def draw(self):
         if self.y <= 0:
             return
-        fb.fill_polygon(self.display, 3, int(self.x), int(self.y+6), 2, self.bg_color)
-        fb.fill_polygon(self.display, 3, int(self.x), int(self.y), 2, self.color)
-
-    def destroy(self):
-        fb.fill_polygon(self.display, 3, int(self.x), int(self.y+6), 2, self.bg_color)
-        self.y = -1
+        self.fbuf.fill_polygon(3, int(self.x+1), int(self.y+1), 2, self.color)

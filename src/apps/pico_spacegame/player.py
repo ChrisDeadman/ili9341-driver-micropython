@@ -1,6 +1,6 @@
 class Player:
-    def __init__(self, display):
-        self.display = display
+    def __init__(self, fbuf):
+        self.fbuf = fbuf
         self.lives = 3
         self.score = 0
 
