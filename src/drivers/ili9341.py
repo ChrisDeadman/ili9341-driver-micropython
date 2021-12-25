@@ -311,6 +311,7 @@ class Display(object):
         # auto-scrolling (only works for rotation=0)
         # I would advise not to change this since in the end this was all just trial-and-error :D
         #
+        data_idx = 0
         if self.rotation == 0:
             if y2 - self.height >= self.scroll_pos:
                 ystep = (y2 - self.scroll_pos + 1) % self.height
@@ -319,7 +320,6 @@ class Display(object):
             y1 %= self.height
             y2 %= self.height
             # might need to split data in memory buffer
-            data_idx = 0
             if y1 > y2:
                 remainder = self.height - y1
                 data_idx = remainder*w*2
