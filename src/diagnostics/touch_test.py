@@ -6,6 +6,7 @@ class TouchTest(object):
 
     def __init__(self, display, touch):
         self.display = display
+        self.fbuf = fb.FrameBufferEx(None, self.display.width, self.display.height, fbuf=self.display)
         self.touch = touch
         self.pen_color_idx = 1
 
@@ -15,7 +16,7 @@ class TouchTest(object):
             while True:
                 print('Options:')
                 tests = [
-                    ['Clear display', lambda: self.display.fill(bg_color)],
+                    ['Clear display', lambda: self.fbuf.fill(bg_color)],
                     ['Cycle pen color', self.cylce_pen_color],
                     ['Return', None]
                 ]
@@ -33,8 +34,8 @@ class TouchTest(object):
 
     def touch_handler(self, x, y):
         print(f'touch: {x}, {y}')
-        y += self.display.get_scroll()[1]
-        fb.fill_circle(self.display, x, y, 4, COMMON_COLORS[self.pen_color_idx])
+        y += self.fbuf.scroll()[1]
+        self.fbuf.fill_circle(x, y, 4, COMMON_COLORS[self.pen_color_idx])
 
     def cylce_pen_color(self):
         self.pen_color_idx += 1

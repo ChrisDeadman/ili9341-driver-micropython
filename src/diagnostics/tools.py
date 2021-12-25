@@ -29,6 +29,7 @@ class Tools(object):
             tools[tool_idx][1]()
 
     def _get_free_ram(self):
+        gc.collect()
         free_space_kb = gc.mem_free() // 1024
         print(f'Free RAM: {free_space_kb}kB')
 

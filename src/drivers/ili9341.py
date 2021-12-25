@@ -20,11 +20,9 @@
 
 from time import sleep
 
-import fonts
 import framebuf
 import ustruct
 from ubinascii import hexlify
-from ucollections import OrderedDict
 
 
 def color565(r, g, b):
@@ -134,9 +132,6 @@ class Display(object):
         if rotation not in self.ROTATE.keys():
             raise ValueError('Rotation must be 0, 90, 180 or 270.')
 
-        # set size for chunk writes to 4 rows
-        self.chunk_size = width*4*2
-
         # Initialize GPIO pins
         self.pwm.freq(500)
         self.pwm.duty_u16(16384)
@@ -195,7 +190,6 @@ class Display(object):
 
     def fill(self, c):
         """Fill display with the specified color."""
-        self.scroll_abs(0, 0)
         self.fill_rect(0, 0, self.width, self.height, c)
 
     def pixel(self, x, y, c=None):
@@ -269,7 +263,7 @@ class Display(object):
 
     def fill_rect(self, x, y, w, h, c):
         """Draw a filled rectangle."""
-        chunk_height = self.chunk_size // 2 // w
+        chunk_height = 4  # rows of chunk buffer
         chunk_count, remainder = divmod(h, chunk_height)
         chunk = c.to_bytes(2, 'big') * chunk_height * w
 
@@ -278,79 +272,17 @@ class Display(object):
             y += chunk_height
 
         if remainder:
-            self.draw_chunk(chunk[:remainder*w*2], x, y, x+w-1, y+remainder-1)
+            chunk = c.to_bytes(2, 'big') * remainder * w
+            self.draw_chunk(chunk, x, y, x+w-1, y+remainder-1)
 
-    def text(self, s, x, y, c=1, bg=-1, font=fonts.tt14):
-        """Draw some text."""
-        bg = bg if bg >= 0 else 1 if c == 0 else 0
-        key = -1 if bg >= 0 else bg
-        text_width = font.get_width(s)
-
-        c_bytes = c.to_bytes(2, 'big')
-        bg_bytes = bg.to_bytes(2, 'big')
-
-        # generates text horizontally, line by line
-        def row_gen():
-            div, remainder = divmod(font.height(), 8)
-            num_glyph_rows = div+1 if remainder else div
-            for char_y in range(font.height()):
-                row = bytearray(bg_bytes * text_width)
-                pixel_idx = 0
-                for ch in s:
-                    glyph, char_width = font.get_ch(ch)
-                    glyph_row_idx, glyph_row_y = divmod(char_y, 8)
-                    for glyph_column_idx in range(char_width):
-                        glyph_row = glyph[(glyph_column_idx*num_glyph_rows)+glyph_row_idx]
-                        if (glyph_row >> glyph_row_y) & 1:
-                            row[pixel_idx] = c_bytes[0]
-                            row[pixel_idx+1] = c_bytes[1]
-                        pixel_idx += 2
-                yield row
-
-        self.blit_rows(row_gen(), x, y, text_width, font.height(), key)
-        return text_width
-
-    def blit(self, buf, x, y, w, h, key=- 1, palette=framebuf.RGB565):
-        """Draw the contents of a buffer at the given coordinates."""
+    def blit(self, fbuf, x, y, key=-1, palette=framebuf.RGB565):
+        """Draw the contents of a framebuffer at the given coordinates."""
         if palette != framebuf.RGB565:
             raise NotImplementedError(f'Palette {palette} not yet supported.')
 
-        def row_gen():
-            for idx in range(0, len(buf), w*2):
-                yield buf[idx:idx+w*2]
+        self.draw_chunk(fbuf.buffer, x, y, x+fbuf.width-1, y+fbuf.height-1)
 
-        self.blit_rows(row_gen(), x, y, w, h, key)
-
-    def blit_rows(self, row_gen, x, y, w, h, key=- 1):
-        """Draw a number of rows from row generator."""
-        chunk_height = self.chunk_size // 2 // w
-        chunk_count, remainder = divmod(h, chunk_height)
-
-        for c in range(0, chunk_count):
-            self.draw_rows(row_gen, x, y, w, chunk_height, key)
-            y += chunk_height
-
-        if remainder:
-            self.draw_rows(row_gen, x, y, w, remainder, key)
-
-    def draw_rows(self, row_gen, x, y, w, h, key=- 1):
-        """Draw a number of rows from row generator."""
-        draw_w = min(self.width, w)
-        pixel_w = draw_w*2
-        draw_bytes = pixel_w*h
-
-        x2 = x+draw_w-1
-        y2 = y+h-1
-        buf_idx = 0
-        chunk = bytearray(draw_bytes)
-        for _ in range(h):
-            row = next(row_gen)
-            # only draw up to display width
-            chunk[buf_idx:buf_idx+pixel_w] = row[:pixel_w]
-            buf_idx += pixel_w
-        self.draw_chunk(chunk, x, y, x2, y2, key)
-
-    def draw_chunk(self, data, x1, y1, x2, y2, key=- 1):
+    def draw_chunk(self, data, x1, y1, x2, y2, key=-1):
         """Write a chunk of data to display.
             TODO: transparency with key
         """
@@ -394,29 +326,31 @@ class Display(object):
                 self.write_ram(data[:data_idx], x1, y1, x2, self.height-1)
                 y1 = 0
 
-        self.write_ram(data[data_idx:], x1, y1, x2, y2)
+        if data_idx > 0:
+            data = data[data_idx:]
+        self.write_ram(data, x1, y1, x2, y2)
 
-    def scroll(self, xstep, ystep):
-        """Shift the contents of the frame-buffer by the given vector."""
+    def scroll(self, xstep=None, ystep=None):
+        """Shift the contents of the framebuffer by the given vector
+           or return the current shift-vector if xstep and ystep are not provided.
+        ."""
         if xstep and self.rotation == 90:
-            self.scroll_abs(self.scroll_pos + xstep, ystep)
+            self.scroll_abs(self.scroll_pos + xstep, 0)
+        elif ystep:
+            self.scroll_abs(0, self.scroll_pos + ystep)
         else:
-            self.scroll_abs(xstep, self.scroll_pos + ystep)
+            if self.rotation == 90:
+                return (self.scroll_pos, 0)
+            else:
+                return (0, self.scroll_pos)
 
     def scroll_abs(self, xstep, ystep):
-        """Set the shift of the contents of the frame-buffer to the given vector."""
+        """Set the shift of the contents of the framebuffer to the given vector."""
         if (xstep and self.rotation != 90) or (ystep and self.rotation != 0):
             raise ValueError(f'scroll(xstep={xstep},ystep={ystep}) not supported for rotation={self.rotation}')
 
         self.scroll_pos = max(xstep, ystep)
         self.write_cmd(self.VSCRSADD, *ustruct.pack('>H', self.scroll_pos % self.height))
-
-    def get_scroll(self):
-        """Return the shift-vector of the frame-buffer."""
-        if self.rotation == 90:
-            return (self.scroll_pos, 0)
-        else:
-            return (0, self.scroll_pos)
 
     def set_scroll_margins(self, top, bottom):
         """Set the height of the top and bottom scroll margins."""

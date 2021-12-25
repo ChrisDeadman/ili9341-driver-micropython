@@ -26,8 +26,8 @@ class Diagnostics(object):
             bg_color = COMMON_COLORS[self.bg_color_idx]
             print('Diagnostics menu:')
             tests = [
-                ['Clear display', lambda: self.display.fill(bg_color)],
-                ['Cycle background color', self._cylce_bg_color],
+                ['Clear display', lambda: self.clear_screen(bg_color)],
+                ['Cycle background color', self.cylce_bg_color],
                 ['Tools', lambda: tools.run()],
                 ['Apps', lambda: app_launcher.run(bg_color)],
                 ['Draw tests', lambda: draw_test.run(bg_color)],
@@ -44,7 +44,11 @@ class Diagnostics(object):
 
             tests[test_idx][1]()
 
-    def _cylce_bg_color(self):
+    def clear_screen(self, bg_color):
+        self.display.scroll_abs(0, 0)
+        self.display.fill(bg_color)
+
+    def cylce_bg_color(self):
         self.bg_color_idx += 1
         if self.bg_color_idx >= len(COMMON_COLORS):
             self.bg_color_idx = 0
