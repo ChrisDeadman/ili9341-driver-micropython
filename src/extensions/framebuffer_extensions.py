@@ -1,9 +1,10 @@
 # Framebuffer with extension functions.
 #
-# Copied from:
-# - https://github.com/rdagger/micropython-ili9341/blob/master/ili9341.py
+# Circle/ellipse/polygon functions are from:
+# https://github.com/rdagger/micropython-ili9341/blob/master/ili9341.py
+# (MIT License; Copyright (c) 2022 rdagger)
 #
-# MIT License; Copyright (c) 2022 rdagger
+# Rest is MIT License; Copyright (c) 2022 Christopher Hubmann
 #
 
 from math import cos, pi, radians, sin
